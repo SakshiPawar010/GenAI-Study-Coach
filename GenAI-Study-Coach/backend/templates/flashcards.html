@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flashcards – GenAI Study Coach</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand"><a href="/" class="nav-back">← </a>🃏 Flashcards</div>
+        <div class="nav-right">
+            <button id="darkModeBtn" class="btn-dark-toggle">🌙</button>
+        </div>
+    </nav>
+
+    <div class="page-container">
+        <div class="page-header">
+            <h1>🃏 Flashcards</h1>
+            <p>Generate interactive flashcards to reinforce key concepts</p>
+        </div>
+
+        <div class="card">
+            <div id="docIndicator" class="doc-indicator hidden"></div>
+            <button id="flashcardBtn" class="btn btn-flash btn-full">🃏 Generate Flashcards</button>
+        </div>
+
+        <div id="loading" class="loading hidden">
+            <div class="spinner"></div>
+            <p id="loadingMsg">Processing with Claude 3 Sonnet...</p>
+        </div>
+
+        <div id="output" class="output hidden">
+            <div class="output-header">
+                <span id="outputTitle"></span>
+                <div class="output-actions">
+                    <button id="copyBtn" class="btn-copy hidden">📋 Copy</button>
+                    <button id="exportBtn" class="btn-export hidden">⬇️ Export PDF</button>
+                </div>
+            </div>
+            <div id="outputContent"></div>
+        </div>
+    </div>
+
+    <button class="fab-chat" onclick="location.href='/chat-page'" title="Chat with AI">💬</button>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: jenkins
+    user: root
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      # Persistent Jenkins data (jobs, plugins, config)
+      - jenkins_home:/var/jenkins_home
+      # Docker socket — allows Jenkins to run docker commands on the EC2 host
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Mount binaries already installed on EC2 by Terraform user_data
+      # No need to install these inside the container
+      - /usr/bin/docker:/usr/bin/docker
+      - /usr/local/bin/kubectl:/usr/local/bin/kubectl
+      - /usr/local/bin/aws:/usr/local/bin/aws
+      - /usr/local/aws-cli:/usr/local/aws-cli
+      # Mount kubeconfig so Jenkins can talk to EKS cluster
+      - /home/ec2-user/.kube:/root/.kube:ro
+
+volumes:
+  jenkins_home:

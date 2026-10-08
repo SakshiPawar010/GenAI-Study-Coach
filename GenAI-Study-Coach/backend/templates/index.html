@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GenAI Study Coach</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+    <!-- ── Navbar ── -->
+    <nav class="navbar">
+        <div class="nav-left">
+            <button id="sidebarToggle" class="sidebar-toggle" title="Toggle Sidebar">☰</button>
+            <span class="nav-brand">🎓 GenAI Study Coach</span>
+        </div>
+        <div class="nav-right">
+            <span class="nav-subtitle">Powered by Amazon Bedrock &amp; Claude 3 Sonnet</span>
+            <button id="darkModeBtn" class="btn-dark-toggle">🌙</button>
+        </div>
+    </nav>
+
+    <!-- ── App Shell ── -->
+    <div class="app-shell">
+
+        <!-- ── Sidebar ── -->
+        <aside class="sidebar" id="sidebar">
+            <nav class="sidebar-nav">
+                <button class="sidebar-btn active" data-tab="summarize">
+                    <span class="sidebar-icon">📝</span>
+                    <span class="sidebar-label">Summarize</span>
+                </button>
+                <button class="sidebar-btn" data-tab="quiz">
+                    <span class="sidebar-icon">❓</span>
+                    <span class="sidebar-label">Quiz</span>
+                </button>
+                <button class="sidebar-btn" data-tab="roadmap">
+                    <span class="sidebar-icon">🗺️</span>
+                    <span class="sidebar-label">Roadmap</span>
+                </button>
+                <button class="sidebar-btn" data-tab="flashcards">
+                    <span class="sidebar-icon">🃏</span>
+                    <span class="sidebar-label">Flashcards</span>
+                </button>
+                <button class="sidebar-btn" data-tab="compare">
+                    <span class="sidebar-icon">🔀</span>
+                    <span class="sidebar-label">Compare</span>
+                </button>
+                <button class="sidebar-btn" data-tab="progress">
+                    <span class="sidebar-icon">📊</span>
+                    <span class="sidebar-label">Progress</span>
+                </button>
+                <button class="sidebar-btn" data-tab="session">
+                    <span class="sidebar-icon">🤖</span>
+                    <span class="sidebar-label">AI Session</span>
+                </button>
+            </nav>
+        </aside>
+
+        <!-- ── Sidebar Overlay (mobile) ── -->
+        <div class="sidebar-overlay hidden" id="sidebarOverlay"></div>
+
+        <!-- ── Main Content ── -->
+        <main class="main-content">
+
+            <!-- Upload Section -->
+            <div class="card upload-card">
+                <div class="upload-grid">
+                    <label>📄 Paste Your Notes / Transcript:</label>
+                    <div class="upload-boxes">
+                        <div class="input-section">
+                            <textarea id="notes" placeholder="Paste your study notes here..."></textarea>
+                        </div>
+                        <div class="upload-right">
+                            <div class="drop-zone" id="dropZone">
+                                <input type="file" id="fileInput" accept=".pdf,.docx,.txt" multiple />
+                                <div class="drop-zone-icon">&#128196;</div>
+                                <div>
+                                    <div class="drop-zone-text">Drag &amp; drop or <span class="drop-zone-browse">browse files</span></div>
+                                    <div class="drop-zone-hint">PDF &bull; DOCX &bull; TXT &mdash; Max 10MB each</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="textarea-footer">
+                        <span class="textarea-hint">✍️ Supports plain text, markdown, transcripts</span>
+                        <span id="charCount" class="char-count">0 chars</span>
+                    </div>
+                    <div id="fileTagsContainer" class="file-tags-container hidden"></div>
+                    <div id="recentDocsSection" class="recent-docs-section hidden">
+                        <span class="recent-label">&#128194; Recent:</span>
+                        <div class="recent-docs-list" id="recentDocsList"></div>
+                    </div>
+                    <div id="topicBadgeRow" class="topic-badge-row hidden">
+                        <span id="topicBadge" class="topic-badge"></span>
+                        <span id="topicDetecting" class="topic-detecting hidden">&#128269; Detecting topic...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Panels -->
+            <div class="tab-content">
+
+                <!-- Summarize Panel -->
+                <div class="tab-panel active" id="panel-summarize">
+                    <div class="panel-header">
+                        <h2>📝 Generate Summary</h2>
+                        <p>Get a structured summary of your notes</p>
+                    </div>
+                    <button id="summarizeBtn" class="btn btn-primary btn-full">📝 Generate Summary</button>
+                    <div id="loading-summarize" class="loading hidden">
+                        <div class="spinner"></div>
+                        <p id="loadingMsg-summarize">Processing with Claude 3 Sonnet...</p>
+                    </div>
+                    <div id="output-summarize" class="output hidden">
+                        <div class="output-header">
+                            <span id="outputTitle-summarize"></span>
+                            <div class="output-actions">
+                                <button id="copyBtn-summarize" class="btn-copy hidden">📋 Copy</button>
+                                <button id="exportBtn-summarize" class="btn-export hidden">⬇️ Export PDF</button>
+                            </div>
+                        </div>
+                        <div id="outputContent-summarize"></div>
+                    </div>
+                </div>
+
+                <!-- Quiz Panel -->
+                <div class="tab-panel hidden" id="panel-quiz">
+                    <div class="panel-header">
+                        <h2>❓ Generate Quiz</h2>
+                        <p>Test your knowledge with AI-generated questions</p>
+                    </div>
+                    <div class="difficulty-section">
+                        <label>Quiz Difficulty:</label>
+                        <div class="difficulty-buttons">
+                            <button class="diff-btn active" data-level="easy">🟢 Easy</button>
+                            <button class="diff-btn" data-level="medium">🟡 Medium</button>
+                            <button class="diff-btn" data-level="hard">🔴 Hard</button>
+                        </div>
+                    </div>
+                    <button id="quizBtn" class="btn btn-secondary btn-full">❓ Generate Quiz</button>
+                    <div id="loading-quiz" class="loading hidden">
+                        <div class="spinner"></div>
+                        <p id="loadingMsg-quiz">Processing with Claude 3 Sonnet...</p>
+                    </div>
+                    <div id="output-quiz" class="output hidden">
+                        <div class="output-header">
+                            <span id="outputTitle-quiz"></span>
+                            <div class="output-actions">
+                                <button id="exportBtn-quiz" class="btn-export hidden">⬇️ Export PDF</button>
+                            </div>
+                        </div>
+                        <div id="outputContent-quiz"></div>
+                    </div>
+                </div>
+
+                <!-- Roadmap Panel -->
+                <div class="tab-panel hidden" id="panel-roadmap">
+                    <div class="panel-header">
+                        <h2>🗺️ Study Roadmap</h2>
+                        <p>Get a personalized day-by-day study plan</p>
+                    </div>
+                    <div class="days-section">
+                        <label for="daysInput">Number of Days:</label>
+                        <input type="number" id="daysInput" class="days-input" value="7" min="1" max="365" />
+                    </div>
+                    <button id="roadmapBtn" class="btn btn-tertiary btn-full">🗺️ Create Roadmap</button>
+                    <div id="loading-roadmap" class="loading hidden">
+                        <div class="spinner"></div>
+                        <p id="loadingMsg-roadmap">Processing with Claude 3 Sonnet...</p>
+                    </div>
+                    <div id="output-roadmap" class="output hidden">
+                        <div class="output-header">
+                            <span id="outputTitle-roadmap"></span>
+                            <div class="output-actions">
+                                <button id="copyBtn-roadmap" class="btn-copy hidden">📋 Copy</button>
+                                <button id="exportBtn-roadmap" class="btn-export hidden">⬇️ Export PDF</button>
+                            </div>
+                        </div>
+                        <div id="outputContent-roadmap"></div>
+                    </div>
+                </div>
+
+                <!-- Flashcards Panel -->
+                <div class="tab-panel hidden" id="panel-flashcards">
+                    <div class="panel-header">
+                        <h2>🃏 Flashcards</h2>
+                        <p>Generate interactive flashcards to reinforce key concepts</p>
+                    </div>
+                    <button id="flashcardBtn" class="btn btn-flash btn-full">🃏 Generate Flashcards</button>
+                    <div id="loading-flashcards" class="loading hidden">
+                        <div class="spinner"></div>
+                        <p id="loadingMsg-flashcards">Processing with Claude 3 Sonnet...</p>
+                    </div>
+                    <div id="output-flashcards" class="output hidden">
+                        <div class="output-header">
+                            <span id="outputTitle-flashcards"></span>
+                            <div class="output-actions">
+                                <button id="exportBtn-flashcards" class="btn-export hidden">⬇️ Export PDF</button>
+                            </div>
+                        </div>
+                        <div id="outputContent-flashcards"></div>
+                    </div>
+                </div>
+
+                <!-- Compare Panel -->
+                <div class="tab-panel hidden" id="panel-compare">
+                    <div class="panel-header">
+                        <h2>🔀 Compare Documents</h2>
+                        <p>Upload exactly 2 documents to compare them</p>
+                    </div>
+                    <div class="compare-info">
+                        💡 Upload <strong>exactly 2 documents</strong> using the file picker above, then click Compare.
+                    </div>
+                    <button id="compareBtn" class="btn btn-compare btn-full">🔀 Compare Documents</button>
+                    <div id="loading-compare" class="loading hidden">
+                        <div class="spinner"></div>
+                        <p id="loadingMsg-compare">Analyzing both documents...</p>
+                    </div>
+                    <div id="output-compare" class="output hidden">
+                        <div class="output-header">
+                            <span id="outputTitle-compare"></span>
+                            <div class="output-actions">
+                                <button id="copyBtn-compare" class="btn-copy hidden">📋 Copy</button>
+                            </div>
+                        </div>
+                        <div id="outputContent-compare"></div>
+                    </div>
+                </div>
+
+                <!-- Progress Panel -->
+                <div class="tab-panel hidden" id="panel-progress">
+                    <div class="progress-header">
+                        <h2>📊 Your Study Progress</h2>
+                        <button id="clearProgressBtn" class="btn-clear-progress">🗑 Clear History</button>
+                    </div>
+                    <div id="progressEmpty" class="progress-empty">
+                        <p>📭 No quiz history yet. Take a quiz to start tracking your progress!</p>
+                    </div>
+                    <div id="progressDashboard" class="hidden">
+                        <div class="stats-row">
+                            <div class="stat-card">
+                                <div class="stat-value" id="statTotal">0</div>
+                                <div class="stat-label">Quizzes Taken</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" id="statAvg">0%</div>
+                                <div class="stat-label">Avg Score</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" id="statBest">0%</div>
+                                <div class="stat-label">Best Score</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" id="statTopics">0</div>
+                                <div class="stat-label">Topics Studied</div>
+                            </div>
+                        </div>
+                        <div class="chart-card">
+                            <h3>📈 Score History</h3>
+                            <canvas id="scoreChart" height="120"></canvas>
+                        </div>
+                        <div class="chart-card">
+                            <h3>🎯 Weak Areas</h3>
+                            <div id="weakAreasContent"></div>
+                        </div>
+                        <div class="chart-card">
+                            <h3>📋 Quiz History</h3>
+                            <div id="historyTable"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI Study Session Panel -->
+                <div class="tab-panel hidden" id="panel-session">
+                    <div class="panel-header">
+                        <h2>🤖 Agentic Study Session</h2>
+                        <p>AI detects your topic, summarizes notes, quizzes you, then builds a personalized roadmap based on your real answers.</p>
+                    </div>
+
+                    <!-- Phase 1 config -->
+                    <div id="session-phase1-config">
+                        <div class="session-config">
+                            <div class="session-field">
+                                <label for="sessionGoal">🎯 Your Study Goal:</label>
+                                <input type="text" id="sessionGoal" placeholder="e.g. Prepare for Jenkins interview in 3 days" />
+                            </div>
+                        </div>
+                        <button id="sessionBtn" class="btn btn-session btn-full">🤖 Launch Agentic Study Session</button>
+                    </div>
+
+                    <!-- Phase 1 loading -->
+                    <div id="loading-session-p1" class="loading hidden">
+                        <div class="spinner"></div>
+                        <p id="sessionStepLabel-p1">Initializing...</p>
+                        <div id="sessionStepTracker-p1" class="step-tracker"></div>
+                    </div>
+
+                    <!-- Phase 1 result: summary + quiz -->
+                    <div id="session-phase1-result" class="hidden">
+                        <div class="session-phase-banner">
+                            <div id="session-topic-hero"></div>
+                            <div class="session-phase-info">
+                                📊 <strong>Phase 1 complete.</strong> Read the summary, then answer the diagnostic quiz below. Your answers will be used to personalize your roadmap.
+                            </div>
+                        </div>
+
+                        <div class="session-section" id="session-summary-section">
+                            <div class="session-section-title">📝 Summary</div>
+                            <div id="session-summary-body"></div>
+                        </div>
+
+                        <div class="session-section" id="session-diag-quiz-section">
+                            <div class="session-section-title">❓ Diagnostic Quiz — Answer all questions, then submit</div>
+                            <div id="session-diag-quiz-body"></div>
+                            <button id="sessionSubmitQuizBtn" class="btn btn-session" style="margin-top:16px" disabled>🚀 Submit Answers &amp; Generate Report</button>
+                        </div>
+                    </div>
+
+                    <!-- Phase 2a loading -->
+                    <div id="loading-session-p2" class="loading hidden">
+                        <div class="spinner"></div>
+                        <p id="sessionStepLabel-p2">Evaluating your answers...</p>
+                        <div id="sessionStepTracker-p2" class="step-tracker"></div>
+                    </div>
+
+                    <!-- Phase 2a result: score + flashcards + targeted quiz (if weak) -->
+                    <div id="session-phase2a-result" class="hidden">
+                        <div id="session-score-banner"></div>
+
+                        <!-- Flashcards (shown only if weak) -->
+                        <div id="session-flashcards-section" class="hidden session-section">
+                            <div class="session-section-title">🃏 Study These Flashcards First</div>
+                            <div id="session-flashcards-body"></div>
+                        </div>
+
+                        <!-- Targeted quiz (shown only if weak) -->
+                        <div id="session-targeted-quiz-section" class="hidden session-section">
+                            <div class="session-section-title">🎯 Targeted Quiz — Prove you’ve learned your weak areas</div>
+                            <div id="session-targeted-quiz-body"></div>
+                            <button id="sessionSubmitTargetedBtn" class="btn btn-session" style="margin-top:16px" disabled>🚀 Submit &amp; Build My Roadmap</button>
+                        </div>
+
+                        <!-- Direct to roadmap button (shown if score >= 60%) -->
+                        <div id="session-skip-remediation" class="hidden" style="margin-top:16px">
+                            <button id="sessionBuildRoadmapBtn" class="btn btn-session btn-full">🗺️ Build My Personalized Roadmap</button>
+                        </div>
+                    </div>
+
+                    <!-- Phase 2b loading -->
+                    <div id="loading-session-p2b" class="loading hidden">
+                        <div class="spinner"></div>
+                        <p id="sessionStepLabel-p2b">Building your roadmap...</p>
+                        <div id="sessionStepTracker-p2b" class="step-tracker"></div>
+                    </div>
+
+                    <!-- Phase 2 result: full report -->
+                    <div id="output-session" class="output hidden">
+                        <div class="output-header">
+                            <span id="outputTitle-session"></span>
+                        </div>
+                        <div id="outputContent-session"></div>
+                    </div>
+                </div>
+
+            </div><!-- end tab-content -->
+        </main><!-- end main-content -->
+    </div><!-- end app-shell -->
+
+    <!-- Floating Chat Button -->
+    <button class="fab-chat" id="fabChatBtn" title="Chat with AI">💬</button>
+
+    <!-- Chat Drawer -->
+    <div class="chat-drawer hidden" id="chatDrawer">
+        <div class="chat-drawer-header">
+            <span>💬 Chat with Your Notes</span>
+            <button id="closeChatBtn" class="chat-close">✕</button>
+        </div>
+        <div class="chat-history" id="chatHistory">
+            <div class="chat-answer-bubble ai">
+                <strong>🤖 AI:</strong><br>Hi! Upload your notes above, then ask me anything about them.
+            </div>
+        </div>
+        <div class="chat-input-bar">
+            <input type="text" id="chatInput" placeholder="Ask a question..." />
+            <button id="chatBtn" class="btn-chat">Send</button>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

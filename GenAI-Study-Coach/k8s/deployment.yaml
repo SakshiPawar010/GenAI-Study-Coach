@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: genai-study-coach
+  labels:
+    app: genai-study-coach
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: genai-study-coach
+  template:
+    metadata:
+      labels:
+        app: genai-study-coach
+    spec:
+      # IRSA — this service account is annotated with the Bedrock IAM role ARN
+      # Allows the pod to call AWS Bedrock without any hardcoded credentials
+      serviceAccountName: genai-study-coach-sa
+      containers:
+        - name: app
+          # Placeholder — Jenkins replaces this via: kubectl set image deployment/genai-study-coach app=<ECR_URL>:<BUILD_NUMBER>
+          # Format will be: <account_id>.dkr.ecr.us-east-1.amazonaws.com/genai-study-coach:<build>
+          image: PLACEHOLDER_REPLACED_BY_JENKINS
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5000
+          env:
+            - name: AWS_REGION
+              value: "us-east-1"
+            - name: MODEL_ID
+              value: "anthropic.claude-3-sonnet-20240229-v1:0"
+            - name: SECRET_KEY
+              value: "genai-study-coach-secret-2024"
+          volumeMounts:
+            - name: data-volume
+              mountPath: /app/backend/data
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5000
+            initialDelaySeconds: 30
+            periodSeconds: 20
+      volumes:
+        - name: data-volume
+          persistentVolumeClaim:
+            claimName: study-coach-data-pvc

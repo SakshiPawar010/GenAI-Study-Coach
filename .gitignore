@@ -1,0 +1,25 @@
+# Environment & Secrets
+.env
+*.env
+
+# Virtual Environment
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Data & Cache files
+GenAI-Study-Coach/backend/data/doc_cache/
+GenAI-Study-Coach/backend/data/vector_store/
+GenAI-Study-Coach/backend/data/study_coach.db
+GenAI-Study-Coach/backend/data/progress.json
+GenAI-Study-Coach/backend/data/weak_areas.json
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db

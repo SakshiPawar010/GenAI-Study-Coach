@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: study-coach-data-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  # gp2 is the standard EBS storage class on EKS
+  # This tells EKS to automatically provision an EBS volume
+  storageClassName: gp2
+  resources:
+    requests:
+      storage: 1Gi

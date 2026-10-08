@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz – GenAI Study Coach</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand"><a href="/" class="nav-back">← </a>❓ Quiz</div>
+        <div class="nav-right">
+            <button id="darkModeBtn" class="btn-dark-toggle">🌙</button>
+        </div>
+    </nav>
+
+    <div class="page-container">
+        <div class="page-header">
+            <h1>❓ Generate Quiz</h1>
+            <p>Test your knowledge with AI-generated questions</p>
+        </div>
+
+        <div class="card">
+            <div id="docIndicator" class="doc-indicator hidden"></div>
+            <!-- Difficulty -->
+            <div class="difficulty-section">
+                <label>Quiz Difficulty:</label>
+                <div class="difficulty-buttons">
+                    <button class="diff-btn active" data-level="easy">🟢 Easy</button>
+                    <button class="diff-btn" data-level="medium">🟡 Medium</button>
+                    <button class="diff-btn" data-level="hard">🔴 Hard</button>
+                </div>
+            </div>
+            <button id="quizBtn" class="btn btn-secondary btn-full">❓ Generate Quiz</button>
+        </div>
+
+        <div id="loading" class="loading hidden">
+            <div class="spinner"></div>
+            <p id="loadingMsg">Processing with Claude 3 Sonnet...</p>
+        </div>
+
+        <div id="output" class="output hidden">
+            <div class="output-header">
+                <span id="outputTitle"></span>
+                <div class="output-actions">
+                    <button id="copyBtn" class="btn-copy hidden">📋 Copy</button>
+                    <button id="exportBtn" class="btn-export hidden">⬇️ Export PDF</button>
+                </div>
+            </div>
+            <div id="outputContent"></div>
+        </div>
+    </div>
+
+    <button class="fab-chat" onclick="location.href='/chat-page'" title="Chat with AI">💬</button>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,124 @@
+pipeline {
+    agent any
+
+    environment {
+        AWS_REGION = "us-east-1"
+        ECR_REPO   = "genai-study-coach"
+        APP_DIR    = "GenAI-Study-Coach"
+        S3_BUCKET  = "genai-study-coach-project-767398117085"
+        K8S_DIR    = "${APP_DIR}/k8s"
+    }
+
+    stages {
+
+        // ── STAGE 1: Pull code from S3 ───────────────────────────────────────
+        // No Git — project uploaded to S3 from Windows, Jenkins pulls it here
+        // S3 bucket contains the GenAI-Study-Coach folder at root level
+        stage('Pull Code from S3') {
+            steps {
+                sh """
+                    rm -rf ${APP_DIR}
+                    aws s3 cp s3://${S3_BUCKET}/${APP_DIR}/ ${APP_DIR}/ --recursive
+                """
+            }
+        }
+
+        // ── STAGE 2: Get AWS Account ID dynamically ──────────────────────────
+        // Jenkins EC2 has IAM role attached via Terraform — no hardcoded keys
+        stage('Set ECR Variables') {
+            steps {
+                script {
+                    env.AWS_ACCOUNT_ID = sh(
+                        script: "aws sts get-caller-identity --query Account --output text",
+                        returnStdout: true
+                    ).trim()
+                    env.ECR_REGISTRY = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+                    env.IMAGE        = "${env.ECR_REGISTRY}/${ECR_REPO}"
+                    env.TAG          = "${BUILD_NUMBER}"
+                }
+            }
+        }
+
+        // ── STAGE 3: Trivy — Scan source code for vulnerabilities ────────────
+        // DevSecOps: security scan BEFORE building the image
+        stage('Trivy Code Scan') {
+            steps {
+                sh """
+                    if ! command -v trivy &> /dev/null; then
+                        curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+                    fi
+                    trivy fs --exit-code 0 --severity HIGH,CRITICAL --format table ${APP_DIR}/
+                """
+            }
+        }
+
+        // ── STAGE 4: Build Docker Image ──────────────────────────────────────
+        stage('Build Docker Image') {
+            steps {
+                dir("${APP_DIR}") {
+                    sh "docker build -t ${env.IMAGE}:${env.TAG} ."
+                }
+            }
+        }
+
+        // ── STAGE 5: Trivy — Scan Docker image for CVEs ──────────────────────
+        // DevSecOps: scan the built image BEFORE pushing to ECR
+        stage('Trivy Image Scan') {
+            steps {
+                sh "trivy image --exit-code 0 --severity HIGH,CRITICAL --format table ${env.IMAGE}:${env.TAG}"
+            }
+        }
+
+        // ── STAGE 6: Push to ECR ─────────────────────────────────────────────
+        // Jenkins IAM role (attached by Terraform) has ECR permissions
+        // No credentials block needed — IAM role handles authentication
+        stage('Push to ECR') {
+            steps {
+                sh """
+                    aws ecr get-login-password --region ${AWS_REGION} | \
+                        docker login --username AWS --password-stdin ${env.ECR_REGISTRY}
+                    docker push ${env.IMAGE}:${env.TAG}
+                    docker tag  ${env.IMAGE}:${env.TAG} ${env.IMAGE}:latest
+                    docker push ${env.IMAGE}:latest
+                """
+            }
+        }
+
+        // ── STAGE 7: Deploy to EKS ───────────────────────────────────────────
+        stage('Deploy to EKS') {
+            steps {
+                sh """
+                    # Connect kubectl to EKS cluster
+                    aws eks update-kubeconfig --region ${AWS_REGION} --name genai-study-coach-eks
+
+                    # Apply Service Account first — needed for IRSA (Bedrock access)
+                    kubectl apply -f ${K8S_DIR}/serviceaccount.yaml
+
+                    # Apply storage and deployment manifests
+                    kubectl apply -f ${K8S_DIR}/pvc.yaml
+                    kubectl apply -f ${K8S_DIR}/deployment.yaml
+                    kubectl apply -f ${K8S_DIR}/service.yaml
+
+                    # Update deployment to use the new image built in this pipeline run
+                    kubectl set image deployment/genai-study-coach app=${env.IMAGE}:${env.TAG}
+
+                    # Wait up to 2 minutes for rollout to complete successfully
+                    kubectl rollout status deployment/genai-study-coach --timeout=120s
+                """
+            }
+        }
+    }
+
+    post {
+        always {
+            // Remove local Docker image after pipeline — keeps Jenkins EC2 disk clean
+            sh "docker rmi ${env.IMAGE}:${env.TAG} || true"
+        }
+        success {
+            echo "Pipeline succeeded — GenAI Study Coach deployed to EKS"
+        }
+        failure {
+            echo "Pipeline failed — check stage logs above for details"
+        }
+    }
+}
